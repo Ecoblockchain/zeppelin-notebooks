@@ -1,0 +1,237 @@
+{
+  "paragraphs": [
+    {
+      "text": "// Load Neighborhood DataSet as a Data Source using Magellan\nval neighborhoods \u003d magellanContext.read.format(\"magellan\").\n    load(\"/neighborhoods\").\n    select($\"polygon\", $\"metadata\").\n    cache()\n\n// Join Neighborhoods with Uber dataset to determine the neighborhood each trip event is contained in\nval joined \u003d neighborhoods.\njoin(uberTransformed).\nwhere($\"nad83\".within($\"polygon\")).\nselect($\"tripId\", $\"timestamp\", explode($\"metadata\").as(Seq(\"k\", \"v\"))).\nwithColumnRenamed(\"v\", \"neighborhood\").\ndrop(\"k\").\ncache()\n\nprintln(\"%table TripID\\tTimestamp\\tNeighborhood\\n\" + joined.take(3).map {\n    case Row(tripId: String, timestamp: String, nbd: String) \u003d\u003e tripId + \"\\t\" + timestamp + \"\\t\" + nbd\n    \n}.mkString(\"\\n\"))",
+      "dateUpdated": "Oct 29, 2015 12:24:00 AM",
+      "config": {
+        "colWidth": 12.0,
+        "graph": {
+          "mode": "table",
+          "height": 300.0,
+          "optionOpen": false,
+          "keys": [],
+          "values": [],
+          "groups": [],
+          "scatter": {}
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "jobName": "paragraph_1446074500689_-1491717252",
+      "id": "20151029-002140_1344558940",
+      "result": {
+        "code": "SUCCESS",
+        "type": "TABLE",
+        "msg": "TripID\tTimestamp\tNeighborhood\n00002\t2007-01-06T06:23:27+00:00\tMarina                   \n00006\t2007-01-04T01:04:58+00:00\tMarina                   \n00008\t2007-01-03T00:59:01+00:00\tCastro/Upper Market      \n"
+      },
+      "dateCreated": "Oct 29, 2015 12:21:40 AM",
+      "dateStarted": "Oct 29, 2015 12:24:00 AM",
+      "dateFinished": "Oct 29, 2015 12:24:01 AM",
+      "status": "FINISHED",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "// How many uber trips pass through a given neighborhood?\n\nval grouped \u003d joined.\n    groupBy($\"neighborhood\").\n    agg(countDistinct(\"tripId\").\n    as(\"trips\")).\n    orderBy(col(\"trips\").desc)\n\nprintln(\"%table Neighborhood\\tTrips\\n\" + grouped.take(6).map { case Row(nbd: String, trips: Long) \u003d\u003e nbd + \"\\t\" + trips }.mkString(\"\\n\"))",
+      "dateUpdated": "Oct 29, 2015 12:27:43 AM",
+      "config": {
+        "colWidth": 12.0,
+        "graph": {
+          "mode": "pieChart",
+          "height": 300.0,
+          "optionOpen": false,
+          "keys": [
+            {
+              "name": "Neighborhood",
+              "index": 0.0,
+              "aggr": "sum"
+            }
+          ],
+          "values": [
+            {
+              "name": "Trips",
+              "index": 1.0,
+              "aggr": "sum"
+            }
+          ],
+          "groups": [],
+          "scatter": {
+            "xAxis": {
+              "name": "Neighborhood",
+              "index": 0.0,
+              "aggr": "sum"
+            },
+            "yAxis": {
+              "name": "Trips",
+              "index": 1.0,
+              "aggr": "sum"
+            }
+          }
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "jobName": "paragraph_1446074640394_-62928403",
+      "id": "20151029-002400_1987823924",
+      "result": {
+        "code": "SUCCESS",
+        "type": "TABLE",
+        "msg": "Neighborhood\tTrips\nSouth of Market          \t9891\nWestern Addition         \t6794\nDowntown/Civic Center    \t6697\nFinancial District       \t6038\nMission                  \t5620\nPacific Heights          \t2926\n"
+      },
+      "dateCreated": "Oct 29, 2015 12:24:00 AM",
+      "dateStarted": "Oct 29, 2015 12:27:14 AM",
+      "dateFinished": "Oct 29, 2015 12:27:33 AM",
+      "status": "FINISHED",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "// how many trips start at a given neighborhood?\nval df \u003d joined.map { case Row(tripId: String, timestamp: String, neighborhood: String) \u003d\u003e\n   (tripId, (timestamp, neighborhood))\n  }.groupByKey().map { case (tripId: String, trip: Iterable[(String, String)]) \u003d\u003e \n    val sorted \u003d trip.toList.sortBy(_._1)\n    val (start_ts, start_nbd) \u003d sorted.head\n    val (end_ts, end_nbd) \u003d sorted.last\n    (tripId, start_ts, start_nbd, end_ts, end_nbd)\n  }.toDF(\"tripId\", \"start_timestamp\", \"start_neighborhood\", \"end_timestamp\", \"end_neighborhood\")\n  \nprintln(\"%table Start Neighborhood\\tTrips\\n\" + df.groupBy(\u0027start_neighborhood).count().orderBy(\u0027count.desc).take(8).map {\n    case Row(start_nbd: String, trips: Long) \u003d\u003e start_nbd + \"\\t\" + trips\n}.mkString(\"\\n\"))",
+      "dateUpdated": "Oct 29, 2015 12:29:49 AM",
+      "config": {
+        "colWidth": 12.0,
+        "graph": {
+          "mode": "pieChart",
+          "height": 300.0,
+          "optionOpen": false,
+          "keys": [
+            {
+              "name": "Start Neighborhood",
+              "index": 0.0,
+              "aggr": "sum"
+            }
+          ],
+          "values": [
+            {
+              "name": "Trips",
+              "index": 1.0,
+              "aggr": "sum"
+            }
+          ],
+          "groups": [],
+          "scatter": {
+            "xAxis": {
+              "name": "Start Neighborhood",
+              "index": 0.0,
+              "aggr": "sum"
+            },
+            "yAxis": {
+              "name": "Trips",
+              "index": 1.0,
+              "aggr": "sum"
+            }
+          }
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "jobName": "paragraph_1446074815936_-198331012",
+      "id": "20151029-002655_1028128294",
+      "result": {
+        "code": "SUCCESS",
+        "type": "TABLE",
+        "msg": "Start Neighborhood\tTrips\nSouth of Market          \t5697\nFinancial District       \t3542\nDowntown/Civic Center    \t3258\nWestern Addition         \t2632\nMission                  \t2332\nMarina                   \t1003\nNob Hill                 \t960\nPacific Heights          \t853\n"
+      },
+      "dateCreated": "Oct 29, 2015 12:26:55 AM",
+      "dateStarted": "Oct 29, 2015 12:29:20 AM",
+      "dateFinished": "Oct 29, 2015 12:29:23 AM",
+      "status": "FINISHED",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "// How many trips start and end in SOMA?\n\nprintln(\"%table Start Neighborhood\\tTrips\\n\" + df.groupBy(\u0027start_neighborhood).count().orderBy(\u0027count.desc).take(8).map {\n    case Row(start_nbd: String, trips: Long) \u003d\u003e start_nbd + \"\\t\" + trips\n}.mkString(\"\\n\"))",
+      "dateUpdated": "Oct 29, 2015 12:31:14 AM",
+      "config": {
+        "colWidth": 12.0,
+        "graph": {
+          "mode": "pieChart",
+          "height": 300.0,
+          "optionOpen": false,
+          "keys": [
+            {
+              "name": "Start Neighborhood",
+              "index": 0.0,
+              "aggr": "sum"
+            }
+          ],
+          "values": [
+            {
+              "name": "Trips",
+              "index": 1.0,
+              "aggr": "sum"
+            }
+          ],
+          "groups": [],
+          "scatter": {
+            "xAxis": {
+              "name": "Start Neighborhood",
+              "index": 0.0,
+              "aggr": "sum"
+            },
+            "yAxis": {
+              "name": "Trips",
+              "index": 1.0,
+              "aggr": "sum"
+            }
+          }
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "jobName": "paragraph_1446074960277_757182753",
+      "id": "20151029-002920_1954708666",
+      "result": {
+        "code": "SUCCESS",
+        "type": "TABLE",
+        "msg": "Start Neighborhood\tTrips\nSouth of Market          \t5697\nFinancial District       \t3542\nDowntown/Civic Center    \t3258\nWestern Addition         \t2632\nMission                  \t2332\nMarina                   \t1003\nNob Hill                 \t960\nPacific Heights          \t853\n"
+      },
+      "dateCreated": "Oct 29, 2015 12:29:20 AM",
+      "dateStarted": "Oct 29, 2015 12:31:08 AM",
+      "dateFinished": "Oct 29, 2015 12:31:12 AM",
+      "status": "FINISHED",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "config": {},
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "jobName": "paragraph_1446075068890_1275994481",
+      "id": "20151029-003108_109636531",
+      "dateCreated": "Oct 29, 2015 12:31:08 AM",
+      "status": "READY",
+      "progressUpdateIntervalMs": 500
+    }
+  ],
+  "name": "uber-magellan",
+  "id": "2B4RN9WSA",
+  "angularObjects": {
+    "2B1XG1J5R": [],
+    "2B4UZTC3K": [],
+    "2B49VKZN2": [],
+    "2B2DD8YM6": [],
+    "2B1K5H6VJ": [],
+    "2B1E4MPZ7": [],
+    "2B2NK2XYN": [],
+    "2B2Q15E25": [],
+    "2B41XH4JD": [],
+    "2B3RZ5QND": [],
+    "2B3ZCYJHZ": [],
+    "2B1845PW7": [],
+    "2B2Y89QPF": [],
+    "2B1R2XTUE": []
+  },
+  "config": {},
+  "info": {}
+}
